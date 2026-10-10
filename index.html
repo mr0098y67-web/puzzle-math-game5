@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1e1b4b">
+<title>Puzzle & Math Games</title>
+<style>
+  :root{
+    --bg1:#1e1b4b; --bg2:#4c1d95; --card:rgba(255,255,255,.1);
+    --accent:#fbbf24; --good:#22c55e; --bad:#ef4444; --text:#fff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    color:var(--text);display:flex;justify-content:center;
+  }
+  #app{width:100%;max-width:480px;padding:16px;display:flex;flex-direction:column;min-height:100%}
+  h1{text-align:center;margin:12px 0 4px;font-size:1.9rem}
+  .sub{text-align:center;opacity:.8;margin-bottom:20px}
+  .screen{display:none;flex:1;flex-direction:column}
+  .screen.active{display:flex}
+  .menu-btn{
+    background:var(--card);border:2px solid rgba(255,255,255,.2);color:var(--text);
+    border-radius:20px;padding:22px;margin:10px 0;font-size:1.3rem;font-weight:700;
+    cursor:pointer;display:flex;align-items:center;gap:14px;text-align:left;
+  }
+  .menu-btn small{display:block;font-weight:400;opacity:.75;font-size:.85rem;margin-top:3px}
+  .menu-btn .ico{font-size:2.2rem}
+  .menu-btn:active{transform:scale(.97)}
+  .bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+  .pill{background:var(--card);padding:8px 14px;border-radius:14px;font-weight:700;font-size:.95rem}
+  .btn{
+    background:var(--accent);color:#1e1b4b;border:none;border-radius:14px;
+    padding:12px 18px;font-weight:800;font-size:1rem;cursor:pointer;
+  }
+  .btn.ghost{background:var(--card);color:var(--text)}
+  .btn:active{transform:scale(.96)}
+  /* Sliding puzzle */
+  #board{
+    --n:4;display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6px;
+    width:100%;aspect-ratio:1;background:rgba(0,0,0,.25);padding:8px;border-radius:18px;margin:8px 0 14px;
+  }
+  .tile{
+    background:linear-gradient(145deg,#a78bfa,#7c3aed);border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:clamp(1.2rem,7vw,2.2rem);font-weight:800;cursor:pointer;
+    box-shadow:0 4px 0 rgba(0,0,0,.3);transition:transform .08s;
+  }
+  .tile:active{transform:scale(.94)}
+  .tile.empty{background:transparent;box-shadow:none;cursor:default}
+  .tile.ok{background:linear-gradient(145deg,#34d399,#059669)}
+  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  select{background:var(--card);color:var(--text);border:none;border-radius:14px;padding:12px;font-size:1rem;font-weight:700}
+  select option{color:#000}
+  /* Math */
+  #question{
+    background:var(--card);border-radius:22px;padding:30px 10px;text-align:center;
+    font-size:2.4rem;font-weight:800;margin:14px 0;min-height:110px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #answers{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .ans{
+    background:linear-gradient(145deg,#60a5fa,#2563eb);border:none;color:#fff;
+    border-radius:18px;padding:22px 0;font-size:1.7rem;font-weight:800;cursor:pointer;
+    box-shadow:0 5px 0 rgba(0,0,0,.3);
+  }
+  .ans:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.3)}
+  .ans.right{background:var(--good)} .ans.wrong{background:var(--bad)}
+  #timebar{height:10px;background:rgba(0,0,0,.3);border-radius:10px;overflow:hidden}
+  #timefill{height:100%;width:100%;background:var(--accent);transition:width .1s linear}
+  /* Modal */
+  #modal{
+    position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;
+    align-items:center;justify-content:center;padding:20px;z-index:10;
+  }
+  #modal.show{display:flex}
+  .box{background:#312e81;border-radius:24px;padding:28px 22px;text-align:center;width:100%;max-width:340px}
+  .box h2{margin:0 0 8px;font-size:1.8rem}
+  .box p{margin:6px 0 18px;opacity:.9;line-height:1.5}
+  .back{margin-top:auto;padding-top:16px}
+  .best{text-align:center;opacity:.8;font-size:.9rem;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- MENU -->
+  <div class="screen active" id="menu">
+    <h1>🎮 Puzzle Games</h1>
+    <div class="sub">Dimaagh ki kasrat shuru karo!</div>
+    <button class="menu-btn" onclick="show('slide')"><span class="ico">🧩</span><span>Sliding Puzzle<small>Numbers ko tarteeb mein lagao</small></span></button>
+    <button class="menu-btn" onclick="show('math')"><span class="ico">➕</span><span>Math Puzzle<small>Jaldi se sahi jawab chuno</small></span></button>
+    <div class="best" id="menuBest"></div>
+  </div>
+
+  <!-- SLIDING PUZZLE -->
+  <div class="screen" id="slide">
+    <div class="bar">
+      <button class="btn ghost" onclick="show('menu')">⬅ Menu</button>
+      <select id="sizeSel" onchange="startSlide()">
+        <option value="3">3×3</option>
+        <option value="4" selected>4×4</option>
+        <option value="5">5×5</option>
+      </select>
+    </div>
+    <div class="bar">
+      <div class="pill">Moves: <span id="moves">0</span></div>
+      <div class="pill">⏱ <span id="stime">0</span>s</div>
+      <div class="pill">🏆 <span id="sbest">-</span></div>
+    </div>
+    <div id="board"></div>
+    <div class="row"><button class="btn" onclick="startSlide()">🔀 Shuffle / Naya</button></div>
+  </div>
+
+  <!-- MATH PUZZLE -->
+  <div class="screen" id="math">
+    <div class="bar">
+      <button class="btn ghost" onclick="endMath(true);show('menu')">⬅ Menu</button>
+      <div class="pill">❤️ <span id="lives">3</span></div>
+      <div class="pill">⭐ <span id="score">0</span></div>
+    </div>
+    <div class="bar">
+      <div class="pill">Level <span id="level">1</span></div>
+      <div class="pill">🔥 Streak <span id="streak">0</span></div>
+      <div class="pill">🏆 <span id="mbest">0</span></div>
+    </div>
+    <div id="timebar"><div id="timefill"></div></div>
+    <div id="question">Ready?</div>
+    <div id="answers"></div>
+  </div>
+</div>
+
+<div id="modal"><div class="box">
+  <h2 id="mTitle"></h2><p id="mText"></p>
+  <div class="row"><button class="btn" id="mBtn1"></button><button class="btn ghost" id="mBtn2">Menu</button></div>
+</div></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+function store(k, v){
+  try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }catch(e){ return null; }
+}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+  if(id==='slide') startSlide();
+  if(id==='math') startMath();
+  if(id==='menu') refreshMenu();
+  if(id!=='slide') clearInterval(stimer);
+}
+function modal(title, text, btn1Text, btn1Fn){
+  $('mTitle').textContent = title; $('mText').innerHTML = text;
+  $('mBtn1').textContent = btn1Text;
+  $('mBtn1').onclick = ()=>{ $('modal').classList.remove('show'); btn1Fn(); };
+  $('mBtn2').onclick = ()=>{ $('modal').classList.remove('show'); show('menu'); };
+  $('modal').classList.add('show');
+}
+function refreshMenu(){
+  const m = store('mathBest')||0;
+  const s3=store('slideBest3'), s4=store('slideBest4'), s5=store('slideBest5');
+  $('menuBest').innerHTML = `🏆 Math best: ${m} &nbsp;|&nbsp; Puzzle best (moves): 3×3: ${s3||'-'}, 4×4: ${s4||'-'}, 5×5: ${s5||'-'}`;
+}
+refreshMenu();
+
+/* ---------- SLIDING PUZZLE ---------- */
+let N=4, tiles=[], moves=0, stime=0, stimer=null, started=false, solved=false;
+
+function startSlide(){
+  N = +$('sizeSel').value;
+  tiles = Array.from({length:N*N},(_,i)=>(i+1)%(N*N));   // last = 0 (empty)
+  let empty = N*N-1, prev=-1;
+  // shuffle using random legal moves => always solvable
+  for(let i=0;i<N*N*N*12;i++){
+    const nb = neighbors(empty).filter(x=>x!==prev);
+    const pick = nb[Math.floor(Math.random()*nb.length)];
+    [tiles[empty],tiles[pick]]=[tiles[pick],tiles[empty]];
+    prev=empty; empty=pick;
+  }
+  if(isSolved()) return startSlide();
+  moves=0; stime=0; started=false; solved=false;
+  clearInterval(stimer);
+  $('moves').textContent=0; $('stime').textContent=0;
+  $('sbest').textContent = store('slideBest'+N) || '-';
+  renderBoard();
+}
+function neighbors(i){
+  const r=Math.floor(i/N), c=i%N, out=[];
+  if(r>0) out.push(i-N); if(r<N-1) out.push(i+N);
+  if(c>0) out.push(i-1); if(c<N-1) out.push(i+1);
+  return out;
+}
+function isSolved(){ return tiles.every((v,i)=> v===(i+1)%(N*N)); }
+function renderBoard(){
+  const b=$('board'); b.style.setProperty('--n',N); b.innerHTML='';
+  tiles.forEach((v,i)=>{
+    const d=document.createElement('div');
+    d.className='tile'+(v===0?' empty':'')+((v!==0 && v===i+1)?' ok':'');
+    d.textContent = v===0?'':v;
+    if(v!==0) d.onclick=()=>moveTile(i);
+    b.appendChild(d);
+  });
+}
+function moveTile(i){
+  if(solved) return;
+  const e = tiles.indexOf(0);
+  if(!neighbors(e).includes(i)) return;
+  if(!started){ started=true; stimer=setInterval(()=>{stime++;$('stime').textContent=stime;},1000); }
+  [tiles[e],tiles[i]]=[tiles[i],tiles[e]];
+  moves++; $('moves').textContent=moves;
+  renderBoard();
+  if(isSolved()){
+    solved=true; clearInterval(stimer);
+    const best = +store('slideBest'+N) || Infinity;
+    let msg = `Aap ne ${moves} moves aur ${stime} seconds mein solve kiya!`;
+    if(moves<best){ store('slideBest'+N, moves); msg += '<br>🏆 Naya best score!'; $('sbest').textContent=moves; }
+    setTimeout(()=>modal('🎉 Mubarak!', msg, 'Dobara khelo', startSlide), 350);
+  }
+}
+
+/* ---------- MATH PUZZLE ---------- */
+let lives, score, streak, level, qCount, answer, tLeft, tMax, mtimer, locked;
+
+function startMath(){
+  lives=3; score=0; streak=0; level=1; qCount=0; locked=false;
+  $('mbest').textContent = store('mathBest')||0;
+  updMath(); nextQ();
+}
+function updMath(){
+  $('lives').textContent='❤️'.repeat(Math.max(lives,0))||'💀';
+  $('score').textContent=score; $('streak').textContent=streak; $('level').textContent=level;
+}
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+
+function makeQuestion(){
+  const L = level;
+  const max = 10 + L*8;
+  let ops = ['+','-'];
+  if(L>=2) ops.push('×');
+  if(L>=4) ops.push('÷');
+  const op = ops[rnd(0,ops.length-1)];
+  let a,b,res,text;
+  if(op==='+'){ a=rnd(1,max); b=rnd(1,max); res=a+b; text=`${a} + ${b}`; }
+  else if(op==='-'){ a=rnd(1,max); b=rnd(1,a); res=a-b; text=`${a} − ${b}`; }
+  else if(op==='×'){ a=rnd(2,Math.min(12,3+L)); b=rnd(2,Math.min(12,3+L)); res=a*b; text=`${a} × ${b}`; }
+  else { b=rnd(2,Math.min(12,2+L)); res=rnd(2,Math.min(12,2+L)); a=b*res; text=`${a} ÷ ${b}`; }
+  // from level 3, sometimes hide a number: "a + ? = c"
+  if(L>=3 && (op==='+'||op==='-') && Math.random()<.4){
+    if(op==='+'){ text=`${a} + ? = ${res}`; res=b; }
+    else        { text=`${a} − ? = ${a-b}`; res=b; }
+  }
+  return {text, res};
+}
+function nextQ(){
+  locked=false;
+  const q=makeQuestion(); answer=q.res;
+  $('question').textContent = q.text + (q.text.includes('?')?'':' = ?');
+  const opts=new Set([answer]);
+  while(opts.size<4){
+    let w = answer + rnd(-6,6);
+    if(w!==answer && w>=0) opts.add(w);
+  }
+  const arr=[...opts].sort(()=>Math.random()-.5);
+  const box=$('answers'); box.innerHTML='';
+  arr.forEach(v=>{
+    const b=document.createElement('button'); b.className='ans'; b.textContent=v;
+    b.onclick=()=>choose(b,v); box.appendChild(b);
+  });
+  tMax = Math.max(4, 11 - level); tLeft=tMax;
+  clearInterval(mtimer);
+  mtimer=setInterval(()=>{
+    tLeft-=0.1; $('timefill').style.width=Math.max(tLeft/tMax*100,0)+'%';
+    if(tLeft<=0){ clearInterval(mtimer); choose(null,null); }
+  },100);
+}
+function choose(btn,val){
+  if(locked) return; locked=true; clearInterval(mtimer);
+  const ok = val===answer;
+  document.querySelectorAll('.ans').forEach(b=>{ if(+b.textContent===answer) b.classList.add('right'); });
+  if(ok){
+    streak++; qCount++;
+    score += 10 + Math.min(streak,10) + Math.round(tLeft);
+    if(qCount%5===0){ level++; }
+  } else {
+    if(btn) btn.classList.add('wrong');
+    lives--; streak=0;
+  }
+  updMath();
+  setTimeout(()=>{
+    if(lives<=0) return endMath(false);
+    nextQ();
+  }, ok?450:900);
+}
+function endMath(silent){
+  clearInterval(mtimer); locked=true;
+  if(silent) return;
+  const best=+store('mathBest')||0;
+  let msg=`Score: <b>${score}</b><br>Level: ${level}`;
+  if(score>best){ store('mathBest',score); msg+='<br>🏆 Naya high score!'; }
+  modal('Game Over', msg, 'Dobara khelo', startMath);
+}
+
+/* offline support hint: works as a single file, no external libraries */
+</script>
+</body>
+</html>
